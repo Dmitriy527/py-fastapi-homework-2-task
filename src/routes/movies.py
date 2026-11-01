@@ -1,25 +1,22 @@
 import re
 from datetime import date
-from typing import Union
-from xmlrpc.client import ResponseError
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlalchemy import select, func
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import selectinload
 
 from crud import get_or_create_genres, get_or_create_actors, get_or_create_languages
 from database import get_db, MovieModel
-from database.models import CountryModel, GenreModel, ActorModel, LanguageModel
+from database.models import CountryModel
 from schemas import MovieListResponseSchema
 from schemas.movies import (
     MovieReturnSchema,
     MovieRequestSchema,
-    CountrySchema,
     MovieRequestDetailSchema,
+    MoviePatchSchema,
 )
 
 router = APIRouter(prefix="/movies", tags=["movies"])
@@ -32,7 +29,35 @@ def movie_body(payload: dict) -> MovieRequestSchema:
         raise HTTPException(status_code=400, detail=e.errors())
 
 
-# @router.patch("/{movie_id/")
+def body_for_path(payload: dict = Body(...)) -> MoviePatchSchema:
+    try:
+        return MoviePatchSchema(**payload)
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid input data.")
+
+
+@router.patch("/{movie_id}/", status_code=200)
+async def patch_movie_with_id(
+    movie_id: int,
+    payload: MoviePatchSchema = Depends(body_for_path),
+    db: AsyncSession = Depends(get_db),
+):
+    film = await db.scalar(select(MovieModel).where(MovieModel.id == movie_id))
+    if film is None:
+        raise HTTPException(
+            status_code=404, detail="Movie with the given ID was not found."
+        )
+
+    data = payload.model_dump(exclude_unset=True)
+    for key, value in data.items():
+        setattr(film, key, value)
+
+    await db.commit()
+    await db.refresh(film)
+
+    return {"detail": "Movie updated successfully."}
+
+
 @router.delete("/{movie_id}/", status_code=204)
 async def get_movie_details(
     movie_id: int, db: AsyncSession = Depends(get_db)
@@ -161,16 +186,13 @@ async def get_list_movies(
     if not page_movies:
         raise HTTPException(404, "No movies found.")
 
-    if total_items % per_page == 0:
-        total_pages = total_items // per_page + 1
-    else:
-        total_pages = total_items // per_page
+    total_pages = (total_items + per_page - 1) // per_page
 
     if page > 1:
-        prev_page = f"/api/v1/theater/movies/?page={page - 1}&per_page={per_page}"
+        prev_page = f"/theater/movies/?page={page - 1}&per_page={per_page}"
 
     if page < total_pages:
-        next_page = f"/api/v1/theater/movies/?page={page + 1}&per_page={per_page}"
+        next_page = f"/theater/movies/?page={page + 1}&per_page={per_page}"
 
     return MovieListResponseSchema(
         movies=page_movies,

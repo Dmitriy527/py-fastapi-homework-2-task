@@ -1,24 +1,17 @@
 from decimal import Decimal
-from importlib.metadata import requires
 
-from pydantic import BaseModel, Field, condecimal, field_validator
-from datetime import date
-
-from sqlalchemy import Float
+from pydantic import BaseModel, Field, field_validator
+from datetime import date as datetime
 
 from database.models import (
-    MovieStatusEnum,
-    CountryModel,
-    GenreModel,
-    ActorModel,
-    LanguageModel,
+    MovieStatusEnum
 )
 
 
 class MovieDetailSchema(BaseModel):
     id: int
     name: str
-    date: date
+    date: datetime
     score: float
     overview: str
 
@@ -37,9 +30,19 @@ class MovieListResponseSchema(BaseModel):
         from_attributes = True
 
 
+class MoviePatchSchema(BaseModel):
+    name: str | None = None
+    date: datetime | None = None
+    score: float | None = Field(default=None, ge=0, le=100)
+    overview: str | None = None
+    status: MovieStatusEnum | None = None
+    budget: float | None = Field(default=None, ge=0)
+    revenue: float | None = Field(default=None, ge=0)
+
+
 class MovieRequestSchema(BaseModel):
     name: str
-    date: date
+    date: datetime
     score: float
     overview: str
     status: MovieStatusEnum
@@ -106,7 +109,7 @@ class MovieReturnSchema(MovieRequestSchema):
 class MovieRequestDetailSchema(BaseModel):
     id: int
     name: str
-    date: date
+    date: datetime
     score: float
     overview: str
     status: MovieStatusEnum
