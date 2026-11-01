@@ -100,7 +100,7 @@ class MovieReturnSchema(BaseModel):
     overview: str
     status: MovieStatusEnum
     budget: float = Field(ge=0)
-    revenue: float | None= Field(default=None, max_length=255, ge=0)
+    revenue: float | None = Field(default=None, max_length=255, ge=0)
 
     @field_validator("budget", "revenue", mode="before")
     @classmethod
