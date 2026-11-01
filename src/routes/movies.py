@@ -1,14 +1,130 @@
+import re
+from datetime import date
+from typing import Union
+from xmlrpc.client import ResponseError
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
+from crud import get_or_create_genres, get_or_create_actors, get_or_create_languages
 from database import get_db, MovieModel
 from database.models import CountryModel, GenreModel, ActorModel, LanguageModel
 from schemas import MovieListResponseSchema
+from schemas.movies import (
+    MovieReturnSchema,
+    MovieRequestSchema,
+    CountrySchema,
+    MovieRequestDetailSchema,
+)
 
 router = APIRouter(prefix="/movies", tags=["movies"])
+
+
+def movie_body(payload: dict) -> MovieRequestSchema:
+    try:
+        return MovieRequestSchema(**payload)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.errors())
+
+
+@router.get("/{movie_id}/", response_model=MovieRequestDetailSchema, status_code=200)
+async def get_movie_details(
+    movie_id: int, db: AsyncSession = Depends(get_db)
+) -> MovieRequestDetailSchema:
+    film = await db.scalar(
+        select(MovieModel)
+        .where(MovieModel.id == movie_id)
+        .options(
+            selectinload(MovieModel.country),
+            selectinload(MovieModel.genres),
+            selectinload(MovieModel.actors),
+            selectinload(MovieModel.languages),
+        )
+    )
+    if film is None:
+        raise HTTPException(
+            status_code=404, detail="Movie with the given ID was not found."
+        )
+    return MovieRequestDetailSchema.model_validate(film)
+
+
+@router.post("/", response_model=MovieReturnSchema, status_code=201)
+async def create_movies(
+    payload: MovieRequestSchema = Depends(movie_body),
+    db: AsyncSession = Depends(get_db),
+):
+    if len(payload.name) != 0:
+        exists = await db.scalar(
+            select(MovieModel).where(
+                MovieModel.name == payload.name,
+                MovieModel.date == payload.date,
+            )
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Name is required")
+
+    if payload.date.year > date.today().year + 1:
+        raise HTTPException(
+            404, f"date{payload.date}—more than one year—into the future."
+        )
+
+    if exists:
+        raise HTTPException(
+            409,
+            f"A movie with the name '{payload.name}' and release date '{payload.date}' already exists.",
+        )
+    name = payload.name
+    film_date = payload.date
+
+    if payload.score < 0 or payload.score > 100:
+        raise HTTPException(404, detail="Score is out of range.")
+    score = payload.score
+    overview = payload.overview
+    status = payload.status
+
+    if payload.budget < 0:
+        raise HTTPException(404, detail="Budget is out of range.")
+    budget = payload.budget
+
+    if payload.revenue <= 0:
+        raise HTTPException(404, detail="Overview is out of range.")
+    revenue = payload.revenue
+
+    if not re.compile(r"^[A-Z]{2,3}$").fullmatch(payload.country):
+        raise HTTPException(404, detail="Country is invalid.")
+
+    country = await db.scalar(
+        select(CountryModel).where(CountryModel.code == payload.country)
+    )
+    if not country:
+        country = CountryModel(code=payload.country)
+        db.add(country)
+        await db.flush()
+    genres = await get_or_create_genres(db, payload.genres)
+    actors = await get_or_create_actors(db, payload.actors)
+    languages = await get_or_create_languages(db, payload.languages)
+    movie = MovieModel(
+        name=name,
+        date=film_date,
+        score=score,
+        overview=overview,
+        status=status,
+        budget=budget,
+        revenue=revenue,
+        country=country,
+        genres=genres,
+        actors=actors,
+        languages=languages,
+    )
+    db.add(movie)
+    await db.commit()
+    await db.refresh(movie, ["country", "genres", "actors", "languages"])
+    return await db.scalar(select(MovieModel).where(MovieModel.name == movie.name))
 
 
 @router.get("/", response_model=MovieListResponseSchema)
