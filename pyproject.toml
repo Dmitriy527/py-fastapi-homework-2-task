@@ -5,7 +5,7 @@ description = "Mate task for first lesson"
 authors = ["Yurii Okal <yurii.okal@mate.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.14.0"
+python = "^3.12.0"
 greenlet = ">=3.2.0"
 sqlalchemy = {extras = ["asyncio"], version = "^2.0.47"}
 pydantic = ">=2.13.0"
