@@ -107,9 +107,9 @@ async def create_movies(
     else:
         raise HTTPException(status_code=400, detail="Name is required")
 
-    if payload.date.year > date.today().year + 1:
+    if payload.date.year > date.today().day - 365:
         raise HTTPException(
-            404, f"date{payload.date}—more than one year—into the future."
+            400, f"date{payload.date}—more than one year—into the future."
         )
 
     if exists:
@@ -121,7 +121,7 @@ async def create_movies(
     film_date = payload.date
 
     if payload.score < 0 or payload.score > 100:
-        raise HTTPException(404, detail="Score is out of range.")
+        raise HTTPException(400, detail="Score is out of range.")
     score = payload.score
     overview = payload.overview
     status = payload.status

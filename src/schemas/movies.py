@@ -3,9 +3,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 from datetime import date as datetime
 
-from database.models import (
-    MovieStatusEnum
-)
+from database.models import MovieStatusEnum
 
 
 class MovieDetailSchema(BaseModel):
@@ -47,7 +45,7 @@ class MovieRequestSchema(BaseModel):
     overview: str
     status: MovieStatusEnum
     budget: float = Field(ge=0)
-    revenue: float = Field(ge=0)
+    revenue: float = Field(max_length=255, ge=0)
 
     @field_validator("budget", "revenue", mode="before")
     @classmethod
@@ -95,8 +93,22 @@ class LanguageSchema(BaseModel):
         from_attributes = True
 
 
-class MovieReturnSchema(MovieRequestSchema):
+class MovieReturnSchema(BaseModel):
     id: int
+    date: datetime
+    score: float
+    overview: str
+    status: MovieStatusEnum
+    budget: float = Field(ge=0)
+    revenue: float = Field(max_length=255, ge=0)
+
+    @field_validator("budget", "revenue", mode="before")
+    @classmethod
+    def convert_to_float(cls, v):
+        if isinstance(v, (Decimal, str)):
+            return float(v)
+        return v
+
     country: CountrySchema
     genres: list[GenreSchema]
     actors: list[ActorSchema]
