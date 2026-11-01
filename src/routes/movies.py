@@ -59,7 +59,7 @@ async def patch_movie_with_id(
 
 
 @router.delete("/{movie_id}/", status_code=204)
-async def get_movie_details(
+async def delete_movies(
     movie_id: int, db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:
     film = await db.scalar(select(MovieModel).where(MovieModel.id == movie_id))
