@@ -32,6 +32,20 @@ def movie_body(payload: dict) -> MovieRequestSchema:
         raise HTTPException(status_code=400, detail=e.errors())
 
 
+# @router.patch("/{movie_id/")
+@router.delete("/{movie_id}/", status_code=204)
+async def get_movie_details(
+    movie_id: int, db: AsyncSession = Depends(get_db)
+) -> JSONResponse:
+    film = await db.scalar(select(MovieModel).where(MovieModel.id == movie_id))
+    if film is None:
+        raise HTTPException(
+            status_code=404, detail="Movie with the given ID was not found."
+        )
+    await db.delete(film)
+    await db.commit()
+
+
 @router.get("/{movie_id}/", response_model=MovieRequestDetailSchema, status_code=200)
 async def get_movie_details(
     movie_id: int, db: AsyncSession = Depends(get_db)
