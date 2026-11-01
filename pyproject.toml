@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Mate task for first lesson"
 authors = ["Yurii Okal <yurii.okal@mate.com>"]
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
 [tool.poetry.dependencies]
 python = "^3.12.0"
 greenlet = ">=3.2.0"
