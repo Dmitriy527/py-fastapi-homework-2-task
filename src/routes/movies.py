@@ -107,6 +107,9 @@ async def create_movies(
     else:
         raise HTTPException(status_code=400, detail="Name is required")
 
+    if len(payload.name) > 255:
+        raise HTTPException(400, detail="Name must be less than 255 characters")
+
     if payload.date > date.today() + timedelta(days=365):
         raise HTTPException(
             400, f"date{payload.date}—more than one year—into the future."
@@ -130,12 +133,12 @@ async def create_movies(
         raise HTTPException(400, detail="Budget is out of range.")
     budget = payload.budget
 
-    if payload.revenue <= 0:
-        raise HTTPException(400, detail="Overview is out of range.")
+    if payload.revenue < 0:
+        raise HTTPException(400, detail="'Revenue is out of range'")
     revenue = payload.revenue
 
     if not re.compile(r"^[A-Z]{2,3}$").fullmatch(payload.country):
-        raise HTTPException(404, detail="Country is invalid.")
+        raise HTTPException(400, detail="Country is invalid.")
 
     country = await db.scalar(
         select(CountryModel).where(CountryModel.code == payload.country)
