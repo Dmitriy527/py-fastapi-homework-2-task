@@ -45,7 +45,7 @@ class MovieRequestSchema(BaseModel):
     overview: str
     status: MovieStatusEnum
     budget: float = Field(ge=0)
-    revenue: float = Field(max_length=255, ge=0)
+    revenue: float = Field(ge=0)
 
     @field_validator("budget", "revenue", mode="before")
     @classmethod
@@ -95,12 +95,13 @@ class LanguageSchema(BaseModel):
 
 class MovieReturnSchema(BaseModel):
     id: int
+    name: str
     date: datetime
     score: float
     overview: str
     status: MovieStatusEnum
     budget: float = Field(ge=0)
-    revenue: float | None = Field(default=None, max_length=255, ge=0)
+    revenue: float = Field(ge=0)
 
     @field_validator("budget", "revenue", mode="before")
     @classmethod

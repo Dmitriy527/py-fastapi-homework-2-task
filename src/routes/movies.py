@@ -1,5 +1,5 @@
 import re
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi.responses import JSONResponse
@@ -59,7 +59,7 @@ async def patch_movie_with_id(
 
 
 @router.delete("/{movie_id}/", status_code=204)
-async def delete_movies(
+async def delete_movie(
     movie_id: int, db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:
     film = await db.scalar(select(MovieModel).where(MovieModel.id == movie_id))
@@ -107,7 +107,7 @@ async def create_movies(
     else:
         raise HTTPException(status_code=400, detail="Name is required")
 
-    if payload.date.year > date.today().day - 365:
+    if payload.date > date.today() + timedelta(days=365):
         raise HTTPException(
             400, f"date{payload.date}—more than one year—into the future."
         )
@@ -163,7 +163,7 @@ async def create_movies(
     db.add(movie)
     await db.commit()
     await db.refresh(movie, ["country", "genres", "actors", "languages"])
-    return await db.scalar(select(MovieModel).where(MovieModel.name == movie.name))
+    return movie
 
 
 @router.get("/", response_model=MovieListResponseSchema)
