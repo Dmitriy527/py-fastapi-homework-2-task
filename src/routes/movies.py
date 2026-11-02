@@ -127,11 +127,11 @@ async def create_movies(
     status = payload.status
 
     if payload.budget < 0:
-        raise HTTPException(404, detail="Budget is out of range.")
+        raise HTTPException(400, detail="Budget is out of range.")
     budget = payload.budget
 
     if payload.revenue <= 0:
-        raise HTTPException(404, detail="Overview is out of range.")
+        raise HTTPException(400, detail="Overview is out of range.")
     revenue = payload.revenue
 
     if not re.compile(r"^[A-Z]{2,3}$").fullmatch(payload.country):
